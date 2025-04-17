@@ -17,7 +17,7 @@ contract FundMe{
     //设置众筹最小投资金额 (单位默认是WEI) //100USD
     uint256 constant MINIMUM_VALUE = 100 * 10 ** 18;
 
-    AggregatorV3Interface internal dataFeed;
+    AggregatorV3Interface public dataFeed;
 
     uint256 constant TARGET = 1000 * 10 ** 18;
 
@@ -33,8 +33,12 @@ contract FundMe{
     //记录是否众筹结束并提款完成状态
     bool public getFundSuccess = false;
 
-    constructor(uint256 _lockTime){
-        dataFeed = AggregatorV3Interface(0x694AA1769357215DE4FAC081bf1f309aDC325306);
+    event FundWithdrawByOwner(uint256);
+    event ReFundByFunder(address,uint256);
+
+    //构造函数2个参数，一个是众筹窗口时间秒，另外一个是dataFeed喂价获取usd 地址
+    constructor(uint256 _lockTime,address dataFeedAddr){
+        dataFeed = AggregatorV3Interface(dataFeedAddr);
         owner = msg.sender;
         deploymentTimestamp = block.timestamp; //部署合约成功的时间戳
         lockTime = _lockTime;
@@ -74,9 +78,7 @@ contract FundMe{
 
     //众筹达成目标结束后提款函数
     function getFund() external onlyOwner windowClosed{
-        require(convertEthToUsd(address(this).balance) >= TARGET,"Target is not reached");
-        require(msg.sender == owner,"this function can only be called by owner");
-    
+        require(convertEthToUsd(address(this).balance) >= TARGET,"Target is not reached");    
         //从智能合约余额转账给调用者,实现方式有三种
         //1. transfer
        // payable(msg.sender).transfer(address(this).balance);
@@ -85,9 +87,13 @@ contract FundMe{
         //require(success,"tx failed");
         //3. call 
         bool resState;
-        (resState,) = payable(msg.sender).call{value: address(this).balance}("");
+        uint256 balance = address(this).balance;
+        (resState,) = payable(msg.sender).call{value: balance}("");
         require(resState,"tx failed");
         getFundSuccess = true;
+
+        //记录日志
+        emit FundWithdrawByOwner(balance);
     }
 
     //修改mapping 对应地址的余额
@@ -108,9 +114,11 @@ contract FundMe{
         uint256 amount = fundersToAmount[msg.sender];
         require(amount != 0,"there is not fund for you");
         bool resState;
-        (resState,) = payable(msg.sender).call{value: fundersToAmount[msg.sender]}("");
+        uint256 fundAmount = fundersToAmount[msg.sender];
+        (resState,) = payable(msg.sender).call{value: fundAmount}("");
         require(resState,"tx failed");
         fundersToAmount[msg.sender] = 0;
+        emit ReFundByFunder(msg.sender,fundAmount);
     }
 
     //筹款窗口关闭 修饰器
