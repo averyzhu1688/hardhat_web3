@@ -42,5 +42,8 @@ module.exports = {
     secendAccount:{
       default:1
     }
+  },
+  gasReporter:{
+    enabled: true
   }
 };

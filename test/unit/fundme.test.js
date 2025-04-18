@@ -102,7 +102,7 @@ describe("test fundme contract",async function(){
     })
     it("window closed,target not reached,getFund failed",async function(){
         //达成筹款目标，支付超过 target 目标
-        await fundMe.fund({value: ethers.parseEther("0.3")})
+        await fundMe.fund({value: ethers.parseEther("0.1")})
         //确保窗口关闭
         await helpers.time.increase(350)
         await helpers.mine()
